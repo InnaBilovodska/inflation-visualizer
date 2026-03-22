@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Вартість часу та інфляції</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:       #f1f5f9;
+      --surface:  #ffffff;
+      --surface2: #f8fafc;
+      --border:   #e2e8f0;
+      --border2:  #cbd5e1;
+      --accent:   #4f46e5;
+      --accent-lt:#ede9fe;
+      --danger:   #e11d48;
+      --danger-lt:#ffe4e6;
+      --green:    #059669;
+      --green-lt: #d1fae5;
+      --amber:    #d97706;
+      --amber-lt: #fef3c7;
+      --text:     #0f172a;
+      --text2:    #334155;
+      --muted:    #64748b;
+      --track:    #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      display: block;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), #818cf8, #a78bfa);
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--track);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.35);
+      transition: transform .15s, box-shadow .15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 14px rgba(79,70,229,0.5);
+    }
+    input[type=range].red::-webkit-slider-thumb {
+      background: var(--danger);
+      box-shadow: 0 2px 8px rgba(225,29,72,0.3);
+    }
+    input[type=range].red::-webkit-slider-thumb:hover {
+      box-shadow: 0 4px 14px rgba(225,29,72,0.5);
+    }
+    input[type=range].grn::-webkit-slider-thumb {
+      background: var(--green);
+      box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+    }
+    input[type=range].grn::-webkit-slider-thumb:hover {
+      box-shadow: 0 4px 14px rgba(5,150,105,0.5);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(15,23,42,0.06), 0 4px 16px rgba(15,23,42,0.04);
+    }
+
+    .label-mono {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .value-big {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+    .pill-indigo { background: var(--accent-lt); color: var(--accent); }
+    .pill-red    { background: var(--danger-lt); color: var(--danger); }
+    .pill-green  { background: var(--green-lt);  color: var(--green);  }
+    .pill-amber  { background: var(--amber-lt);  color: var(--amber);  }
+
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-top: 5px;
+    }
+
+    .divider { height: 1px; background: var(--border); }
+
+    .insight-card {
+      background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+      border: 1px solid #c7d2fe;
+      border-radius: 16px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .insight-card::after {
+      content: '💡';
+      position: absolute;
+      right: 20px; bottom: 14px;
+      font-size: 3.5rem;
+      opacity: 0.1;
+      line-height: 1;
+    }
+
+    .mini-card {
+      background: #fff;
+      border: 1px solid #ddd6fe;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .mini-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    .num-update { animation: flash .3s ease; }
+    @keyframes flash {
+      0%   { opacity: 0.45; transform: translateY(-3px); }
+      100% { opacity: 1;    transform: translateY(0); }
+    }
+
+    canvas { display: block; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="p-5 md:p-8 max-w-[1300px] mx-auto">
+
+  <!-- Header -->
+  <div class="mb-7 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2 mb-2">
+        <span class="pill pill-indigo">Калькулятор</span>
+        <span class="pill pill-amber">Особисті фінанси</span>
+      </div>
+      <h1 class="text-3xl md:text-4xl font-extrabold" style="letter-spacing:-0.03em;color:var(--text);">
+        Вартість часу <span style="color:var(--accent);">&amp;</span> інфляції
+      </h1>
+      <p class="mt-1 text-sm" style="color:var(--muted);">Скільки реально коштуватимуть ваші гроші через роки?</p>
+    </div>
+    <span class="pill pill-red" id="badge-decay" style="font-size:0.8rem;padding:6px 14px;">—</span>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
+
+    <!-- LEFT: Controls -->
+    <div class="card p-6 flex flex-col gap-5">
+
+      <!-- Amount -->
+      <div>
+        <div class="flex justify-between items-baseline mb-3">
+          <span class="label-mono">Початкова сума</span>
+          <div class="value-big" id="val-amount" style="color:var(--accent);">$1 000</div>
+        </div>
+        <input type="range" id="slider-amount" min="100" max="100000" step="100" value="1000"/>
+        <div class="flex justify-between mt-1.5" style="color:var(--muted);font-size:0.68rem;font-family:'DM Mono',monospace;">
+          <span>$100</span><span>$100 000</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Inflation -->
+      <div>
+        <div class="flex justify-between items-baseline mb-3">
+          <span class="label-mono">Рівень інфляції на рік</span>
+          <div class="value-big" id="val-inflation" style="color:var(--danger);">3.0%</div>
+        </div>
+        <input type="range" id="slider-inflation" class="red" min="0.5" max="25" step="0.1" value="3"/>
+        <div class="flex justify-between mt-1.5" style="color:var(--muted);font-size:0.68rem;font-family:'DM Mono',monospace;">
+          <span>0.5%</span><span>25%</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Years -->
+      <div>
+        <div class="flex justify-between items-baseline mb-3">
+          <span class="label-mono">Горизонт планування</span>
+          <div class="value-big" id="val-years" style="color:var(--green);">20 р.</div>
+        </div>
+        <input type="range" id="slider-years" class="grn" min="1" max="50" step="1" value="20"/>
+        <div class="flex justify-between mt-1.5" style="color:var(--muted);font-size:0.68rem;font-family:'DM Mono',monospace;">
+          <span>1 рік</span><span>50 років</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="stat-box">
+          <div class="label-mono">Сьогодні</div>
+          <div class="stat-val" id="stat-now" style="color:var(--accent);">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="label-mono">Через N років</div>
+          <div class="stat-val" id="stat-future" style="color:var(--danger);">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="label-mono">Знецінення $</div>
+          <div class="stat-val" id="stat-loss" style="color:var(--danger);">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="label-mono">Втрата %</div>
+          <div class="stat-val" id="stat-pct" style="color:var(--amber);">—</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Chart + Insights -->
+    <div class="flex flex-col gap-5">
+
+      <div class="card p-6 flex-1">
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <div class="label-mono mb-1">Купівельна спроможність</div>
+            <h2 class="text-xl font-bold" style="letter-spacing:-0.02em;color:var(--text);">Реальна вартість у часі</h2>
+          </div>
+          <span class="pill pill-indigo" style="font-size:0.75rem;">$ / рік</span>
+        </div>
+        <div style="position:relative;height:300px;">
+          <canvas id="myChart"></canvas>
+        </div>
+      </div>
+
+      <div class="insight-card">
+        <div class="label-mono mb-2" style="color:var(--accent);">Аналіз</div>
+        <p id="insight-main" class="font-semibold leading-relaxed mb-4"
+           style="font-size:0.97rem;color:var(--text2);letter-spacing:-0.01em;max-width:680px;position:relative;z-index:1;"></p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" style="position:relative;z-index:1;">
+          <div class="mini-card">
+            <div class="label-mono" style="color:var(--muted);">Половина вартості</div>
+            <div class="mini-val" id="ins-half" style="color:var(--amber);">—</div>
+            <div style="font-size:0.7rem;color:var(--muted);margin-top:3px;">через скільки років</div>
+          </div>
+          <div class="mini-card">
+            <div class="label-mono" style="color:var(--muted);">Правило 72</div>
+            <div class="mini-val" id="ins-rule72" style="color:var(--accent);">—</div>
+            <div style="font-size:0.7rem;color:var(--muted);margin-top:3px;">оцінка подвоєння цін</div>
+          </div>
+          <div class="mini-card">
+            <div class="label-mono" style="color:var(--muted);">Щорічна втрата</div>
+            <div class="mini-val" id="ins-annual" style="color:var(--danger);">—</div>
+            <div style="font-size:0.7rem;color:var(--muted);margin-top:3px;">у першому році</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="mt-6 text-center" style="font-size:0.72rem;color:#94a3b8;font-family:'DM Mono',monospace;">
+    Формула: PV = FV ÷ (1 + r)ⁿ &nbsp;·&nbsp; Лише для освітніх цілей
+  </p>
+</div>
+
+<script>
+  let amount = 1000, inflation = 3, years = 20;
+
+  const ctx = document.getElementById('myChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 300);
+  grad.addColorStop(0, 'rgba(79,70,229,0.15)');
+  grad.addColorStop(1, 'rgba(79,70,229,0.0)');
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{
+      label: 'Купівельна спроможність',
+      data: [],
+      borderColor: '#4f46e5',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 6,
+      pointHoverBackgroundColor: '#4f46e5',
+      pointHoverBorderColor: '#fff',
+      pointHoverBorderWidth: 2,
+      fill: true,
+      backgroundColor: grad,
+      tension: 0.4,
+    }]},
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          borderColor: '#475569',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#a5b4fc',
+          bodyColor: '#f1f5f9',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont: { family: 'DM Mono', size: 13, weight: '500' },
+          callbacks: {
+            label: c => '  ' + fmt(c.parsed.y)
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#f1f5f9' },
+          ticks: { color: '#94a3b8', font: { family: 'DM Mono', size: 11 }, maxTicksLimit: 11 },
+          border: { color: '#e2e8f0' }
+        },
+        y: {
+          grid: { color: '#f1f5f9' },
+          ticks: {
+            color: '#94a3b8',
+            font: { family: 'DM Mono', size: 11 },
+            callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v.toFixed(0))
+          },
+          border: { color: '#e2e8f0' }
+        }
+      }
+    }
+  });
+
+  function fmt(n) {
+    return '$' + n.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtI(n) {
+    return '$' + Math.round(n).toLocaleString('uk-UA');
+  }
+  function flash(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('num-update');
+    void el.offsetWidth;
+    el.classList.add('num-update');
+  }
+  function yearsWord(n) {
+    if (n % 100 >= 11 && n % 100 <= 14) return 'років';
+    const r = n % 10;
+    if (r === 1) return 'рік';
+    if (r >= 2 && r <= 4) return 'роки';
+    return 'років';
+  }
+
+  function update() {
+    const labels = [], data = [];
+    for (let y = 0; y <= years; y++) {
+      labels.push(y === 0 ? 'Зараз' : `${y} р.`);
+      data.push(+(amount / Math.pow(1 + inflation / 100, y)).toFixed(4));
+    }
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.update('none');
+
+    const futureVal = data[years];
+    const loss = amount - futureVal;
+    const lossP = (loss / amount * 100).toFixed(1);
+
+    document.getElementById('stat-now').textContent    = fmtI(amount);
+    document.getElementById('stat-future').textContent = fmtI(futureVal);
+    document.getElementById('stat-loss').textContent   = '−' + fmtI(loss);
+    document.getElementById('stat-pct').textContent    = '−' + lossP + '%';
+    document.getElementById('badge-decay').textContent = '⬇ Знецінення ' + lossP + '%';
+
+    document.getElementById('insight-main').textContent =
+      `Через ${years} ${yearsWord(years)} ваші ${fmtI(amount)} матимуть реальну купівельну спроможність ` +
+      `${fmt(futureVal)} у сьогоднішніх цінах. Ви фактично втратите ${fmt(loss)} (${lossP}%) лише через інфляцію ${inflation.toFixed(1)}% на рік.`;
+
+    const half   = (Math.log(2) / Math.log(1 + inflation / 100)).toFixed(1);
+    const rule72 = (72 / inflation).toFixed(1);
+    const annual = amount * (inflation / 100);
+
+    document.getElementById('ins-half').textContent   = half + ' р.';
+    document.getElementById('ins-rule72').textContent = '≈ ' + rule72 + ' р.';
+    document.getElementById('ins-annual').textContent = fmt(annual);
+
+    ['val-amount','val-inflation','val-years',
+     'stat-now','stat-future','stat-loss','stat-pct'].forEach(flash);
+  }
+
+  function trackFill(slider, color) {
+    const pct = ((+slider.value - +slider.min) / (+slider.max - +slider.min)) * 100;
+    slider.style.background =
+      `linear-gradient(to right, ${color} ${pct}%, var(--track) ${pct}%)`;
+  }
+
+  const sAmt  = document.getElementById('slider-amount');
+  const sInfl = document.getElementById('slider-inflation');
+  const sYrs  = document.getElementById('slider-years');
+
+  sAmt.addEventListener('input', () => {
+    amount = +sAmt.value;
+    document.getElementById('val-amount').textContent = '$' + amount.toLocaleString('uk-UA');
+    trackFill(sAmt, 'var(--accent)');
+    update();
+  });
+  sInfl.addEventListener('input', () => {
+    inflation = +sInfl.value;
+    document.getElementById('val-inflation').textContent = inflation.toFixed(1) + '%';
+    trackFill(sInfl, 'var(--danger)');
+    update();
+  });
+  sYrs.addEventListener('input', () => {
+    years = +sYrs.value;
+    document.getElementById('val-years').textContent = years + ' р.';
+    trackFill(sYrs, 'var(--green)');
+    update();
+  });
+
+  trackFill(sAmt,  'var(--accent)');
+  trackFill(sInfl, 'var(--danger)');
+  trackFill(sYrs,  'var(--green)');
+  update();
+</script>
+</body>
+</html>
